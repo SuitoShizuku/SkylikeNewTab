@@ -35,8 +35,20 @@ export const BREAKPOINT_NAMES: BreakpointName[] = ['lg', 'md', 'sm', 'xs'];
  * 3方式すべての値を常に保持し、`active` でどれを使うかだけを切り替えることで、
  * 「行ったり来たり」しても直前の内容が残るようにしている。
  */
+/** ADD: 空背景モードの設定 */
+export interface SkyConfig {
+  /** ADD: 表示用の地名 */
+  cityName: string;
+  /** ADD: 緯度 */
+  latitude: number;
+  /** ADD: 経度 */
+  longitude: number;
+  /** ADD: 天気情報も加味するか(曇り・雨で空色が変わる) */
+  useWeather: boolean;
+}
+
 export interface BackgroundConfig {
-  active: 'solid' | 'gradient' | 'image';
+  active: 'solid' | 'gradient' | 'image' | 'sky'; // EDIT: 'sky'モードを追加
   solid: { color: string };
   gradient: { from: string; to: string; angle: number };
   image: {
@@ -49,6 +61,8 @@ export interface BackgroundConfig {
     /** 背景を暗くする度合い（0〜1） */
     dim: number;
   };
+  /** ADD: 実際の空に連動する背景の設定 */
+  sky: SkyConfig;
 }
 
 /** ユーザーがアップロードしたカスタムフォント。背景画像と同様 dataURL で保持する。 */

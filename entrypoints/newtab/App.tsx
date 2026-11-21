@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react'; // EDIT: useState, useCallback, useRefを追加
 
 import { AddWidgetList } from '@/components/AddWidgetList/AddWidgetList';
 import { Grid } from '@/components/Grid/Grid';
@@ -8,6 +8,7 @@ import { WidgetSettingsPanel } from '@/components/SettingsPanel/WidgetSettingsPa
 import { Toolbar } from '@/components/Toolbar/Toolbar';
 import { useAppStore } from '@/lib/store';
 import { imageOverlayStyle } from '@/lib/theme';
+import { getCurrentSkyGradient } from '@/lib/sky-background'; // ADD: 空背景
 
 /** 開いているパネルに対応する見出しと中身。 */
 function PanelContent() {
@@ -45,6 +46,45 @@ export function App() {
   const editMode = useAppStore((s) => s.editMode);
   const setEditMode = useAppStore((s) => s.setEditMode);
 
+  // ADD: 空背景のCSS文字列を保持するstate
+  const [skyGradientCss, setSkyGradientCss] = useState<string | null>(null);
+  const skyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ADD: 空背景の更新関数
+  const updateSkyGradient = useCallback(async () => {
+    if (background.active !== 'sky') return;
+    try {
+      const gradient = await getCurrentSkyGradient(background.sky);
+      setSkyGradientCss(gradient.css);
+    } catch {
+      // ADD: エラー時は前回の値を維持
+    }
+  }, [background.active, background.sky]);
+
+  // ADD: 空背景モードの定期更新(1分間隔)
+  useEffect(() => {
+    if (background.active !== 'sky') {
+      setSkyGradientCss(null);
+      if (skyTimerRef.current) {
+        clearInterval(skyTimerRef.current);
+        skyTimerRef.current = null;
+      }
+      return;
+    }
+
+    void updateSkyGradient();
+    skyTimerRef.current = setInterval(() => {
+      void updateSkyGradient();
+    }, 60_000); // ADD: 1分ごとに更新
+
+    return () => {
+      if (skyTimerRef.current) {
+        clearInterval(skyTimerRef.current);
+        skyTimerRef.current = null;
+      }
+    };
+  }, [background.active, background.sky, updateSkyGradient]);
+
   useEffect(() => {
     void init();
   }, [init]);
@@ -78,6 +118,20 @@ export function App() {
             backgroundImage: `url("${background.image.src}")`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
+          }}
+        />
+      )}
+      {/* ADD: 空背景のグラデーション描画 */}
+      {background.active === 'sky' && skyGradientCss && (
+        <div
+          aria-hidden
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 0,
+            pointerEvents: 'none',
+            background: skyGradientCss,
+            transition: 'background 60s linear', // ADD: 滑らかに遷移
           }}
         />
       )}

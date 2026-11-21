@@ -34,6 +34,8 @@ function activeBackground(bg: BackgroundConfig): { css: string; overlay: { blur:
       };
     case 'image':
       return { css: bg.image.fallbackColor, overlay: { blur: bg.image.blur, dim: bg.image.dim } };
+    case 'sky': // ADD: 空背景モード - CSSはskyGradientCssで動的に設定するため、ここでは暫定色を返す
+      return { css: '#0a0820', overlay: null };
   }
 }
 

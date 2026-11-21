@@ -72,3 +72,36 @@
   background-position: center;
   margin-bottom: 12px;
 }
+
+/* ADD: 空背景の検索状態表示 */
+.skyStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--ant-field-bg);
+  font-size: 12px;
+  color: var(--ant-chrome-muted);
+  margin-bottom: 10px;
+}
+
+/* ADD: 空背景のエラー表示 */
+.skyError {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 80, 80, 0.15);
+  font-size: 12px;
+  color: #ff6b6b;
+  margin-bottom: 10px;
+}
+
+/* ADD: ローディングスピナーアニメーション */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

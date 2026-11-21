@@ -1,10 +1,11 @@
-import { useRef } from 'react';
-import { ArrowRight, Upload } from 'lucide-react';
+import { useRef, useState, useCallback } from 'react'; // EDIT: useState, useCallbackを追加
+import { ArrowRight, Upload, MapPin, Loader2, Check } from 'lucide-react'; // EDIT: MapPin, Loader2, Checkを追加
 
 import { ColorPicker } from '@/components/ColorPicker/ColorPicker';
 import { NumberStepper } from '@/components/NumberStepper/NumberStepper';
 import { cx } from '@/lib/cx';
-import type { BackgroundConfig } from '@/lib/types';
+import type { BackgroundConfig, SkyConfig } from '@/lib/types'; // EDIT: SkyConfigを追加
+import { geocodeCity } from '@/widgets/weather/open-meteo'; // ADD: ジオコーディング
 
 import styles from './background-editor.module.css';
 import fieldStyles from '../Field/field.module.css';
@@ -25,6 +26,57 @@ interface BackgroundEditorProps {
  */
 export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ADD: 空背景の地名検索状態
+  const [skySearching, setSkySearching] = useState(false);
+  const [skyError, setSkyError] = useState<string | null>(null);
+  const [skyResolved, setSkyResolved] = useState<string | null>(
+    value.sky.cityName ? `${value.sky.cityName} (${value.sky.latitude.toFixed(2)}, ${value.sky.longitude.toFixed(2)})` : null,
+  );
+
+  // ADD: 地名から緯度経度を検索してsky設定を更新する
+  const handleSkySearch = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        setSkyError('地名を入力してください');
+        return;
+      }
+
+      setSkySearching(true);
+      setSkyError(null);
+
+      try {
+        const result = await geocodeCity(trimmed, 'ja');
+        if (!result) {
+          setSkyError(`「${trimmed}」が見つかりませんでした`);
+          setSkySearching(false);
+          return;
+        }
+
+        const skyConfig: SkyConfig = {
+          cityName: trimmed,
+          latitude: result.latitude,
+          longitude: result.longitude,
+          useWeather: value.sky.useWeather,
+        };
+
+        const displayName = [result.name, result.admin1, result.country].filter(Boolean).join(', ');
+        setSkyResolved(`${displayName} (${result.latitude.toFixed(2)}, ${result.longitude.toFixed(2)})`);
+
+        onChange({
+          ...value,
+          active: 'sky',
+          sky: skyConfig,
+        });
+      } catch (err) {
+        setSkyError(err instanceof Error ? err.message : '検索に失敗しました');
+      } finally {
+        setSkySearching(false);
+      }
+    },
+    [value, onChange],
+  );
 
   const handleFile = (file: File): void => {
     const reader = new FileReader();
@@ -62,6 +114,14 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
           onClick={() => onChange({ ...value, active: 'image' })}
         >
           画像
+        </button>
+        {/* ADD: 空タブ */}
+        <button
+          type="button"
+          className={cx(styles.tab, value.active === 'sky' && styles.tabActive)}
+          onClick={() => onChange({ ...value, active: 'sky' })}
+        >
+          空
         </button>
       </div>
 
@@ -169,6 +229,99 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
               step={0.05}
               onChange={(dim) => onChange({ ...value, image: { ...value.image, dim } })}
             />
+          </div>
+        </>
+      )}
+
+      {/* ADD: 空背景モードの設定UI */}
+      {value.active === 'sky' && (
+        <>
+          <div className={fieldStyles.field}>
+            <label className={fieldStyles.label}>
+              <MapPin size={14} style={{ marginRight: 4, verticalAlign: -2 }} />
+              地域を設定
+            </label>
+            <div className={styles.row}>
+              <input
+                type="text"
+                className={fieldStyles.control}
+                placeholder="例: Tokyo, Osaka, New York"
+                defaultValue={value.sky.cityName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    void handleSkySearch((e.target as HTMLInputElement).value);
+                  }
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== value.sky.cityName) {
+                    void handleSkySearch(v);
+                  }
+                }}
+              />
+            </div>
+            <span className={fieldStyles.help}>
+              地名を入力してEnterで検索。漢字よりローマ字表記の方が見つかりやすいです。
+            </span>
+          </div>
+
+          {skySearching && (
+            <div className={styles.skyStatus}>
+              <Loader2 size={14} className={styles.spinner} />
+              <span>検索中…</span>
+            </div>
+          )}
+
+          {skyError && (
+            <div className={styles.skyError}>{skyError}</div>
+          )}
+
+          {skyResolved && !skySearching && !skyError && (
+            <div className={styles.skyStatus}>
+              <Check size={14} />
+              <span>{skyResolved}</span>
+            </div>
+          )}
+
+          <div className={fieldStyles.field}>
+            <label className={fieldStyles.label}>天気に連動</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                className={cx(
+                  styles.tab,
+                  value.sky.useWeather && styles.tabActive,
+                )}
+                style={{ flex: '0 0 auto', padding: '6px 16px' }}
+                onClick={() =>
+                  onChange({
+                    ...value,
+                    sky: { ...value.sky, useWeather: true },
+                  })
+                }
+              >
+                ON
+              </button>
+              <button
+                type="button"
+                className={cx(
+                  styles.tab,
+                  !value.sky.useWeather && styles.tabActive,
+                )}
+                style={{ flex: '0 0 auto', padding: '6px 16px' }}
+                onClick={() =>
+                  onChange({
+                    ...value,
+                    sky: { ...value.sky, useWeather: false },
+                  })
+                }
+              >
+                OFF
+              </button>
+            </div>
+            <span className={fieldStyles.help}>
+              ONにすると曇り・雨・雪で空の色が変わります。OFFだと常に晴天として計算します。
+            </span>
           </div>
         </>
       )}
