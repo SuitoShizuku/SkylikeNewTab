@@ -67,15 +67,18 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
     { label: '夜', elevation: -45 },
   ];
 
-  // ADD: 代表的な天気コードプリセット
+  // ADD: 代表的な天気コードプリセット (雨量の違いも確認可能)
   const WEATHER_PRESETS = [
     { label: '快晴 (0)', code: 0 },
     { label: '一部曇り (2)', code: 2 },
     { label: '曇天 (3)', code: 3 },
     { label: '霧 (45)', code: 45 },
-    { label: '雨 (63)', code: 63 },
+    { label: '弱い霧雨 (51) [雨量:少]', code: 51 },
+    { label: '雨 (63) [雨量:中]', code: 63 },
+    { label: '激しい雨 (65) [雨量:多]', code: 65 },
     { label: '雪 (73)', code: 73 },
-    { label: '雷雨 (95)', code: 95 },
+    { label: '雷雨 (95) [稲妻+雨]', code: 95 },
+    { label: '激しい雷雨 (99) [稲妻+豪雨]', code: 99 },
   ];
   // ADD: 空背景の地名検索状態
   const [skySearching, setSkySearching] = useState(false);
