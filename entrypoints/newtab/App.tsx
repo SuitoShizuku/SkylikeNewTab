@@ -47,9 +47,10 @@ export function App() {
   const editMode = useAppStore((s) => s.editMode);
   const setEditMode = useAppStore((s) => s.setEditMode);
 
-  // ADD: 空背景のCSS文字列と現在の天気コードを保持するstate
+  // ADD: 空背景のCSS文字列、天気コード、太陽仰角を保持するstate
   const [skyGradientCss, setSkyGradientCss] = useState<string | null>(null);
   const [skyWeatherCode, setSkyWeatherCode] = useState<number | null>(null);
+  const [skyElevation, setSkyElevation] = useState<number>(0);
   const skyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ADD: 空背景の更新関数
@@ -59,6 +60,7 @@ export function App() {
       const gradient = await getCurrentSkyGradient(background.sky);
       setSkyGradientCss(gradient.css);
       setSkyWeatherCode(gradient.weatherCode);
+      setSkyElevation(gradient.elevation);
     } catch {
       // ADD: エラー時は前回の値を維持
     }
@@ -140,9 +142,13 @@ export function App() {
           }}
         />
       )}
-      {/* ADD: 空背景時の雨・雷エフェクト (点滅なしの稲妻ライン描画) */}
+      {/* ADD: 空背景時の天体(星・月)と気象(雨・雷)エフェクト */}
       {background.active === 'sky' && (
-        <SkyWeatherCanvas weatherCode={skyWeatherCode} />
+        <SkyWeatherCanvas
+          weatherCode={skyWeatherCode}
+          elevation={skyElevation}
+          debugMoonPhase={background.sky.debug?.enabled ? background.sky.debug.moonPhase : undefined}
+        />
       )}
       {overlay && (
         <div

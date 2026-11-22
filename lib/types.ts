@@ -43,6 +43,8 @@ export interface SkyDebugConfig {
   elevation: number;
   /** ADD: シミュレーションするWMO天気コード (0=晴れ, 3=曇り, 63=雨, 73=雪 など) */
   weatherCode: number;
+  /** ADD: デバッグ用の月相指定 (0.0=新月, 0.25=上弦, 0.5=満月, 0.75=下弦, 未指定なら実時間) */
+  moonPhase?: number;
 }
 
 /** ADD: 空背景モードの設定 */

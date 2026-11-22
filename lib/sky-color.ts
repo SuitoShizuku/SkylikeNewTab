@@ -57,6 +57,147 @@ export function solarElevation(lat: number, lon: number, date: Date): number {
   return rad2deg(Math.asin(sinAlt));
 }
 
+// ADD: ---- 高精度・月相 (Moon Phase) の天文計算 ----
+
+export interface MoonPhaseInfo {
+  /** ADD: 月相 (0.0=新月, 0.25=上弦, 0.5=満月, 0.75=下弦, 1.0=新月, 連続値) */
+  phase: number;
+  /** ADD: 月齢 (0.00 ～ 29.53日, 連続値) */
+  age: number;
+  /** ADD: 詳細な月相名 */
+  name: string;
+  /** ADD: 月の輝面比 / 照度割合 (0.000 ～ 1.000) */
+  fraction: number;
+  /** ADD: 満ちていく月(true)か欠けていく月(false)か */
+  isWaxing: boolean;
+}
+
+/**
+ * ADD: 指定日時の高精度月相を計算する。
+ * Jean Meeus Astronomical Algorithms に基づく主要な摂動項(出差・二均差・年差等)を
+ * 組み込んだ高精度天文学アルゴリズムにより、連続的な月相・月齢を算出する。
+ */
+export function getMoonPhase(date: Date = new Date(), overridePhase?: number): MoonPhaseInfo {
+  if (typeof overridePhase === 'number') {
+    const phase = ((overridePhase % 1) + 1) % 1;
+    const age = phase * 29.53058867;
+    const fraction = (1 - Math.cos(phase * 2 * Math.PI)) / 2;
+    const isWaxing = phase < 0.5;
+    return {
+      phase,
+      age,
+      name: getMoonPhaseName(phase, fraction),
+      fraction,
+      isWaxing,
+    };
+  }
+
+  // ADD: ユリウス日とユリウス世紀数 (J2000.0基準)
+  const jd = date.getTime() / 86400000 + 2440587.5;
+  const T = (jd - 2451545.0) / 36525;
+
+  // ADD: 太陽の平均近点角 M (度)
+  const M = ((357.5291 + 35999.0503 * T) % 360 + 360) % 360;
+  // ADD: 月の平均近点角 M' (度)
+  const Mp = ((134.9634 + 477198.8676 * T) % 360 + 360) % 360;
+  // ADD: 月の平均離角 D (度)
+  const D = ((297.8502 + 445267.1114 * T) % 360 + 360) % 360;
+
+  // ADD: ラジアン変換
+  const Mrad = deg2rad(M);
+  const Mprad = deg2rad(Mp);
+  const Drad = deg2rad(D);
+
+  // ADD: 摂動項を考慮した月相角 i (度)
+  let i =
+    180 -
+    D -
+    6.289 * Math.sin(Mprad) +
+    2.100 * Math.sin(Mrad) -
+    1.274 * Math.sin(2 * Drad - Mprad) -
+    0.658 * Math.sin(2 * Drad) -
+    0.214 * Math.sin(2 * Mprad) -
+    0.110 * Math.sin(Drad);
+
+  i = ((i % 360) + 360) % 360;
+
+  // ADD: 輝面比 k (0.0 ～ 1.0)
+  const fraction = (1 + Math.cos(deg2rad(i))) / 2;
+
+  // ADD: 満ち欠け方向 (Drad の正負で新月->満月か満月->新月かを判別)
+  const sinD = Math.sin(Drad);
+  const isWaxing = sinD >= 0;
+
+  // ADD: 連続した月相値 phase (0.0=新月, 0.25=上弦, 0.5=満月, 0.75=下弦, 1.0=新月)
+  let phase: number;
+  if (isWaxing) {
+    // 0.0 -> 0.5: fraction 0.0 -> 1.0
+    phase = Math.acos(1 - 2 * fraction) / (2 * Math.PI);
+  } else {
+    // 0.5 -> 1.0: fraction 1.0 -> 0.0
+    phase = 1 - Math.acos(1 - 2 * fraction) / (2 * Math.PI);
+  }
+  phase = ((phase % 1) + 1) % 1;
+
+  const age = phase * 29.53058867;
+  const name = getMoonPhaseName(phase, fraction);
+
+  return { phase, age, name, fraction, isWaxing };
+}
+
+/** ADD: 月相名判定 */
+function getMoonPhaseName(phase: number, fraction: number): string {
+  if (fraction < 0.015) return '新月 (朔)';
+  if (fraction > 0.985) return '満月 (望)';
+  if (phase < 0.22) return '三日月 (若月)';
+  if (phase >= 0.22 && phase <= 0.28) return '上弦の月 (半月)';
+  if (phase > 0.28 && phase < 0.48) return '十三夜 (十日夜)';
+  if (phase > 0.52 && phase < 0.72) return '十六夜・居待月';
+  if (phase >= 0.72 && phase <= 0.78) return '下弦の月 (半月)';
+  return '有明月 (逆三日月)';
+}
+
+// ADD: ---- 星空の可視性判定 ----
+
+export type StarQuality = 'none' | 'normal' | 'brilliant';
+
+export interface StarVisibility {
+  quality: StarQuality;
+  /** ADD: 昼夜・薄明によるフェード係数 (0.0=完全な昼, 1.0=完全な夜) */
+  nightAlpha: number;
+  /** ADD: 雲量によるフェード係数 (0.0=曇り・雨, 1.0=快晴・晴れ) */
+  weatherAlpha: number;
+}
+
+/**
+ * ADD: 太陽仰角と天気コードから星空の表示状態を判定する。
+ * - 昼間(仰角 > -6°)は非表示。
+ * - 曇り(3, 45, 48)や雨(51-67, 80-82, 95-99)は星が見えない。
+ * - 晴れ(1, 2)は通常の星。
+ * - 快晴(0, または天気なし)は最も美しい星空(満天の星・瞬き)。
+ */
+export function getStarVisibility(elevation: number, weatherCode: number | null): StarVisibility {
+  // ADD: 太陽仰角による暗さ (夜空度)
+  let nightAlpha = 0;
+  if (elevation <= -18) {
+    nightAlpha = 1.0; // ADD: 天文薄明終了後の完全な夜
+  } else if (elevation < -6) {
+    nightAlpha = (-6 - elevation) / 12; // ADD: -6°から-18°にかけて滑らかに星が現れる
+  }
+
+  // ADD: 天気コードによる可視性と星の美しさ判定
+  if (weatherCode === null || weatherCode === 0) {
+    return { quality: 'brilliant', nightAlpha, weatherAlpha: 1.0 };
+  }
+
+  if (weatherCode === 1 || weatherCode === 2) {
+    return { quality: 'normal', nightAlpha, weatherAlpha: 0.75 };
+  }
+
+  // ADD: 曇り(3, 45, 48)や雨(51以上)は星が見えない
+  return { quality: 'none', nightAlpha, weatherAlpha: 0.0 };
+}
+
 // ADD: ---- 空のグラデーション色テーブル ----
 
 /**

@@ -1,12 +1,18 @@
 import { useRef, useState, useCallback, useMemo } from 'react'; // EDIT: useMemoを追加
-import { ArrowRight, Upload, MapPin, Loader2, Check, Bug, Sun, CloudRain } from 'lucide-react'; // EDIT: アイコン追加
+import { ArrowRight, Upload, MapPin, Loader2, Check, Bug, Sun, CloudRain, Moon, Sparkles } from 'lucide-react'; // EDIT: Moon, Sparkles追加
 
 import { ColorPicker } from '@/components/ColorPicker/ColorPicker';
 import { NumberStepper } from '@/components/NumberStepper/NumberStepper';
 import { cx } from '@/lib/cx';
-import type { BackgroundConfig, SkyConfig, SkyDebugConfig } from '@/lib/types'; // EDIT: SkyDebugConfigを追加
+import type { BackgroundConfig, SkyConfig, SkyDebugConfig } from '@/lib/types';
 import { geocodeCity } from '@/widgets/weather/open-meteo';
-import { computeSkyGradientFromElevation, isRainyWeather, isThunderWeather } from '@/lib/sky-color'; // ADD: デバッグ用計算と天気判定
+import {
+  computeSkyGradientFromElevation,
+  isRainyWeather,
+  isThunderWeather,
+  getMoonPhase,
+  getStarVisibility,
+} from '@/lib/sky-color'; // EDIT: 月相と星空の関数を追加
 
 import styles from './background-editor.module.css';
 import fieldStyles from '../Field/field.module.css';
@@ -67,7 +73,29 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
     { label: '夜', elevation: -45 },
   ];
 
-  // ADD: 代表的な天気コードプリセット (雨量の違いも確認可能)
+  // ADD: 代表的な月相プリセット
+  const MOON_PRESETS = [
+    { label: 'リアルタイム', phase: undefined },
+    { label: '新月', phase: 0.0 },
+    { label: '三日月', phase: 0.15 },
+    { label: '上弦', phase: 0.25 },
+    { label: '十三夜', phase: 0.38 },
+    { label: '満月', phase: 0.5 },
+    { label: '下弦', phase: 0.75 },
+    { label: '有明月', phase: 0.88 },
+  ];
+
+  // ADD: 現在の星空と月の状態
+  const starVis = useMemo(() => {
+    return getStarVisibility(
+      debugConfig.elevation,
+      value.sky.useWeather ? debugConfig.weatherCode : 0,
+    );
+  }, [debugConfig.elevation, debugConfig.weatherCode, value.sky.useWeather]);
+
+  const currentMoon = useMemo(() => {
+    return getMoonPhase(new Date(), debugConfig.moonPhase);
+  }, [debugConfig.moonPhase]);
   const WEATHER_PRESETS = [
     { label: '快晴 (0)', code: 0 },
     { label: '一部曇り (2)', code: 2 },
@@ -409,6 +437,21 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
                 <span>仰角: {debugConfig.elevation}°</span>
                 <span>天頂: {debugGradient.zenith}</span>
                 <span>地平線: {debugGradient.horizon}</span>
+                {/* ADD: 星・月の状態表示 */}
+                {starVis.nightAlpha > 0.1 && (
+                  <>
+                    {starVis.weatherAlpha > 0.1 ? (
+                      <span style={{ color: '#fef08a' }}>
+                        {starVis.quality === 'brilliant' ? '✨ 最もきれいな星 (快晴)' : '⭐ 星空 (晴れ)'}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94a3b8' }}>☁ 星・月は曇天で見えず</span>
+                    )}
+                    {starVis.weatherAlpha > 0.1 && (
+                      <span style={{ color: '#fef08a' }}>🌙 {currentMoon.name} (月相: {Math.round(currentMoon.fraction * 100)}%)</span>
+                    )}
+                  </>
+                )}
                 {value.sky.useWeather && isThunderWeather(debugConfig.weatherCode) && (
                   <span style={{ color: '#93c5fd' }}>⚡ 稲妻描画 (点滅なし)</span>
                 )}
@@ -482,6 +525,57 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
               </div>
               <span className={fieldStyles.help}>
                 WMOコード: 0=快晴, 1-2=一部晴れ, 3=曇り, 45=霧, 51-67=雨, 71-86=雪, 95=雷雨
+              </span>
+            </div>
+
+            {/* ADD: 高精度月相のシミュレーション */}
+            <div className={fieldStyles.field}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className={fieldStyles.label}>
+                  <Moon size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
+                  月相のシミュレーション ({currentMoon.name}・月齢 {currentMoon.age.toFixed(2)}日・輝面比 {(currentMoon.fraction * 100).toFixed(1)}%)
+                </label>
+              </div>
+
+              {/* ADD: 連続月相スライダー (0% ～ 100%) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="range"
+                  className={styles.slider}
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={
+                    typeof debugConfig.moonPhase === 'number'
+                      ? Math.round(debugConfig.moonPhase * 100)
+                      : Math.round(currentMoon.phase * 100)
+                  }
+                  onChange={(e) => updateDebug({ moonPhase: Number(e.target.value) / 100 })}
+                />
+                <span style={{ fontSize: 11, fontFamily: 'var(--ant-mono)', minWidth: 44, textAlign: 'right' }}>
+                  {typeof debugConfig.moonPhase === 'number'
+                    ? `${(debugConfig.moonPhase * 100).toFixed(1)}%`
+                    : '自動'}
+                </span>
+              </div>
+
+              <div className={styles.presetGrid}>
+                {MOON_PRESETS.map((m) => (
+                  <button
+                    key={m.label}
+                    type="button"
+                    className={cx(
+                      styles.presetButton,
+                      debugConfig.moonPhase === m.phase && styles.presetButtonActive,
+                    )}
+                    onClick={() => updateDebug({ moonPhase: m.phase })}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <span className={fieldStyles.help}>
+                スライダーで月相(0%新月～50%満月～100%新月)を連続的に精密調整できます。「リアルタイム」で現在日時の天文学的計算に戻ります。
               </span>
             </div>
           </div>
