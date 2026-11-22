@@ -105,3 +105,80 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ADD: デバッグプレビューセクション */
+.debugSection {
+  margin-top: 18px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--ant-field-border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.debugHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.debugPreview {
+  position: relative;
+  height: 64px;
+  border-radius: 10px;
+  border: 1px solid var(--ant-field-border);
+  margin: 12px 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 6px 8px;
+  overflow: hidden;
+}
+
+.debugBadge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--ant-mono);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--ant-accent);
+  margin: 6px 0 10px;
+  cursor: pointer;
+}
+
+.presetGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.presetButton {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--ant-field-border);
+  background: var(--ant-field-bg);
+  font-size: 11px;
+  color: var(--ant-chrome-muted);
+  cursor: pointer;
+  transition: all 120ms var(--ant-ease);
+}
+
+.presetButton:hover {
+  background: var(--ant-field-bg-hover);
+  color: var(--ant-chrome-text);
+}
+
+.presetButtonActive {
+  background: var(--ant-chrome-accent);
+  color: #fff;
+  border-color: var(--ant-chrome-accent);
+  font-weight: 600;
+}

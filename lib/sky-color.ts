@@ -208,6 +208,49 @@ export interface SkyGradient {
   css: string;
   /** ADD: 計算に使った太陽仰角(deg) */
   elevation: number;
+  /** ADD: 適用された天気コード (nullは晴天) */
+  weatherCode: number | null;
+}
+
+/**
+ * ADD: 雨が降る天気かどうかを判定する。
+ * 霧雨(51-57), 雨(61-67), にわか雨(80-82), 雷雨(95-99)
+ */
+export function isRainyWeather(code: number | null): boolean {
+  if (code === null) return false;
+  return (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || (code >= 95 && code <= 99);
+}
+
+/**
+ * ADD: 雷が発生する天気かどうかを判定する。
+ * 雷雨(95-99)
+ */
+export function isThunderWeather(code: number | null): boolean {
+  if (code === null) return false;
+  return code >= 95 && code <= 99;
+}
+
+/**
+ * ADD: 太陽の仰角と天気コードから直接空のグラデーションを計算する。
+ * デバッグプレビューやシミュレーションで使用する。
+ *
+ * @param elevation 太陽仰角 (deg: -90 ～ +90)
+ * @param weatherCode WMO天気コード (nullなら晴天)
+ */
+export function computeSkyGradientFromElevation(
+  elevation: number,
+  weatherCode: number | null = null,
+): SkyGradient {
+  const palettes = selectPalettes(weatherCode);
+  const { zenith, horizon } = interpolatedPalette(palettes, elevation);
+
+  return {
+    zenith,
+    horizon,
+    css: `linear-gradient(180deg, ${zenith} 0%, ${horizon} 100%)`,
+    elevation,
+    weatherCode,
+  };
 }
 
 /**
@@ -225,15 +268,7 @@ export function computeSkyGradient(
   date: Date = new Date(),
 ): SkyGradient {
   const elevation = solarElevation(lat, lon, date);
-  const palettes = selectPalettes(weatherCode);
-  const { zenith, horizon } = interpolatedPalette(palettes, elevation);
-
-  return {
-    zenith,
-    horizon,
-    css: `linear-gradient(180deg, ${zenith} 0%, ${horizon} 100%)`,
-    elevation,
-  };
+  return computeSkyGradientFromElevation(elevation, weatherCode);
 }
 
 // ADD: ---- 天気データの取得(Open-Meteo) ----

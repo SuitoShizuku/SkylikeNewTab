@@ -13,7 +13,13 @@ export const DEFAULT_THEME: ThemeConfig = {
     solid: { color: '#11141b' },
     gradient: { from: '#241a2e', to: '#0c0d14', angle: 155 },
     image: { src: '', fallbackColor: '#11141b', blur: 0, dim: 0.15 },
-    sky: { cityName: '', latitude: 0, longitude: 0, useWeather: true }, // ADD: 空背景の初期値
+    sky: {
+      cityName: '',
+      latitude: 0,
+      longitude: 0,
+      useWeather: true,
+      debug: { enabled: false, elevation: 45, weatherCode: 0 },
+    }, // ADD: 空背景の初期値
   },
   textColor: '#f1ecec',
   accentColor: '#ff8a4c',

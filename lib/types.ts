@@ -35,6 +35,16 @@ export const BREAKPOINT_NAMES: BreakpointName[] = ['lg', 'md', 'sm', 'xs'];
  * 3方式すべての値を常に保持し、`active` でどれを使うかだけを切り替えることで、
  * 「行ったり来たり」しても直前の内容が残るようにしている。
  */
+/** ADD: 空背景のデバッグ・シミュレーション用設定 */
+export interface SkyDebugConfig {
+  /** ADD: デバッグモードが有効か */
+  enabled: boolean;
+  /** ADD: シミュレーションする太陽の仰角 (-90° ～ +90°) */
+  elevation: number;
+  /** ADD: シミュレーションするWMO天気コード (0=晴れ, 3=曇り, 63=雨, 73=雪 など) */
+  weatherCode: number;
+}
+
 /** ADD: 空背景モードの設定 */
 export interface SkyConfig {
   /** ADD: 表示用の地名 */
@@ -45,6 +55,8 @@ export interface SkyConfig {
   longitude: number;
   /** ADD: 天気情報も加味するか(曇り・雨で空色が変わる) */
   useWeather: boolean;
+  /** ADD: デバッグ・シミュレーション設定 */
+  debug?: SkyDebugConfig;
 }
 
 export interface BackgroundConfig {

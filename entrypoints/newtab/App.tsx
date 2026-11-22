@@ -9,6 +9,7 @@ import { Toolbar } from '@/components/Toolbar/Toolbar';
 import { useAppStore } from '@/lib/store';
 import { imageOverlayStyle } from '@/lib/theme';
 import { getCurrentSkyGradient } from '@/lib/sky-background'; // ADD: 空背景
+import { SkyWeatherCanvas } from '@/components/SkyEffects/SkyWeatherCanvas'; // ADD: 雨・雷描画キャンバス
 
 /** 開いているパネルに対応する見出しと中身。 */
 function PanelContent() {
@@ -46,8 +47,9 @@ export function App() {
   const editMode = useAppStore((s) => s.editMode);
   const setEditMode = useAppStore((s) => s.setEditMode);
 
-  // ADD: 空背景のCSS文字列を保持するstate
+  // ADD: 空背景のCSS文字列と現在の天気コードを保持するstate
   const [skyGradientCss, setSkyGradientCss] = useState<string | null>(null);
+  const [skyWeatherCode, setSkyWeatherCode] = useState<number | null>(null);
   const skyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ADD: 空背景の更新関数
@@ -56,6 +58,7 @@ export function App() {
     try {
       const gradient = await getCurrentSkyGradient(background.sky);
       setSkyGradientCss(gradient.css);
+      setSkyWeatherCode(gradient.weatherCode);
     } catch {
       // ADD: エラー時は前回の値を維持
     }
@@ -65,6 +68,7 @@ export function App() {
   useEffect(() => {
     if (background.active !== 'sky') {
       setSkyGradientCss(null);
+      setSkyWeatherCode(null);
       if (skyTimerRef.current) {
         clearInterval(skyTimerRef.current);
         skyTimerRef.current = null;
@@ -131,9 +135,14 @@ export function App() {
             zIndex: 0,
             pointerEvents: 'none',
             background: skyGradientCss,
-            transition: 'background 60s linear', // ADD: 滑らかに遷移
+            // EDIT: デバッグ中は即座に反映、通常時は60秒かけて滑らかに遷移
+            transition: background.sky.debug?.enabled ? 'none' : 'background 60s linear',
           }}
         />
+      )}
+      {/* ADD: 空背景時の雨・雷エフェクト (点滅なしの稲妻ライン描画) */}
+      {background.active === 'sky' && (
+        <SkyWeatherCanvas weatherCode={skyWeatherCode} />
       )}
       {overlay && (
         <div
