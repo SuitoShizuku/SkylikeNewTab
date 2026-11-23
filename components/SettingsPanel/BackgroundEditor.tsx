@@ -10,6 +10,7 @@ import {
   computeSkyGradientFromElevation,
   isRainyWeather,
   isThunderWeather,
+  isSnowyWeather, // ADD: isSnowyWeather
   getMoonPhase,
   getStarVisibility,
 } from '@/lib/sky-color'; // EDIT: 月相と星空の関数を追加
@@ -104,7 +105,9 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
     { label: '弱い霧雨 (51) [雨量:少]', code: 51 },
     { label: '雨 (63) [雨量:中]', code: 63 },
     { label: '激しい雨 (65) [雨量:多]', code: 65 },
-    { label: '雪 (73)', code: 73 },
+    { label: '弱い雪 (71) [粉雪]', code: 71 },
+    { label: '雪 (73) [通常]', code: 73 },
+    { label: '強い雪 (75) [大粒]', code: 75 },
     { label: '雷雨 (95) [稲妻+雨]', code: 95 },
     { label: '激しい雷雨 (99) [稲妻+豪雨]', code: 99 },
   ];
@@ -457,6 +460,10 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
                 )}
                 {value.sky.useWeather && isRainyWeather(debugConfig.weatherCode) && (
                   <span style={{ color: '#93c5fd' }}>🌧 雨描画</span>
+                )}
+                {/* ADD: 雪描画バッジ */}
+                {value.sky.useWeather && isSnowyWeather(debugConfig.weatherCode) && (
+                  <span style={{ color: '#e0f2fe' }}>❄ 雪描画 (舞い落ちる雪)</span>
                 )}
               </div>
             </div>

@@ -14,7 +14,8 @@ import {
   getMoonPhase,
   getStarVisibility,
   isThunderWeather,
-} from '@/lib/sky-color';
+  isSnowyWeather,
+} from '@/lib/sky-color'; // EDIT: isSnowyWeather追加
 
 interface SkyWeatherCanvasProps {
   weatherCode: number | null;
@@ -26,6 +27,19 @@ interface RainDrop {
   x: number;
   y: number;
   len: number;
+  opacity: number;
+  threshold: number;
+}
+
+// ADD: 雪粒(SnowFlake)の定義
+interface SnowFlake {
+  x: number;
+  y: number;
+  r: number;
+  speed: number;
+  swaySpeed: number;
+  swayAmp: number;
+  swayPhase: number;
   opacity: number;
   threshold: number;
 }
@@ -108,7 +122,31 @@ function getRainIntensity(code: number | null): number {
     case 99:
       return 1.2; // 激しい雷雨
     default:
-      return code >= 51 && code <= 99 ? 0.6 : 0.0;
+      return code >= 51 && code <= 67 ? 0.6 : 0.0;
+  }
+}
+
+/**
+ * ADD: WMO天気コードに応じた雪の強度 (0.0 ～ 1.2) を取得する。
+ */
+function getSnowIntensity(code: number | null): number {
+  if (code === null) return 0;
+
+  switch (code) {
+    case 71:
+      return 0.35; // 弱い雪 (粉雪)
+    case 73:
+      return 0.7; // 通常の雪
+    case 75:
+      return 1.0; // 強い雪 (大粒・たくさん)
+    case 77:
+      return 0.5; // 雪あられ
+    case 85:
+      return 0.65; // にわか雪
+    case 86:
+      return 1.1; // 強いにわか雪
+    default:
+      return isSnowyWeather(code) ? 0.7 : 0.0;
   }
 }
 
@@ -258,11 +296,15 @@ export function SkyWeatherCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const targetRainIntensity = getRainIntensity(weatherCode);
+  const targetSnowIntensity = getSnowIntensity(weatherCode); // ADD: 雪強度
   const isThunder = isThunderWeather(weatherCode);
   const starVis = getStarVisibility(elevation, weatherCode);
 
   const targetRainRef = useRef(targetRainIntensity);
   targetRainRef.current = targetRainIntensity;
+
+  const targetSnowRef = useRef(targetSnowIntensity); // ADD: 雪Ref
+  targetSnowRef.current = targetSnowIntensity;
 
   const isThunderRef = useRef(isThunder);
   isThunderRef.current = isThunder;
@@ -323,8 +365,23 @@ export function SkyWeatherCanvas({
       threshold: i / MAX_DROPS,
     }));
 
+    // ADD: 雪粒の初期化 (ゆっくり優しく揺れながら舞い落ちる)
+    const MAX_FLAKES = Math.floor(Math.min(150, Math.max(65, width / 13)));
+    const flakes: SnowFlake[] = Array.from({ length: MAX_FLAKES }, (_, i) => ({
+      x: Math.random() * (width + 80) - 40,
+      y: Math.random() * height,
+      r: 1.2 + Math.random() * 2.4,
+      speed: 1.1 + Math.random() * 1.5,
+      swaySpeed: 0.0014 + Math.random() * 0.0024,
+      swayAmp: 14 + Math.random() * 22,
+      swayPhase: Math.random() * Math.PI * 2,
+      opacity: 0.35 + Math.random() * 0.45,
+      threshold: i / MAX_FLAKES,
+    }));
+
     // ADD: 状態の補間用変数
     let currentRainIntensity = targetRainRef.current;
+    let currentSnowIntensity = targetSnowRef.current; // ADD: 雪強度
     let currentStarAlpha = starVisRef.current.nightAlpha * starVisRef.current.weatherAlpha;
 
     // ADD: 雷の管理
@@ -520,7 +577,56 @@ export function SkyWeatherCanvas({
         }
       }
 
-      // ADD: ---- 4. 雷(稲妻ライン)の描画 (大迫力ライン、点滅なし) ----
+      // ADD: ---- 4. 雪の描画 (ふんわり優しく舞い落ちる、グラデーション切り替え) ----
+      const targetSnow = targetSnowRef.current;
+      const snowDiff = targetSnow - currentSnowIntensity;
+      if (Math.abs(snowDiff) > 0.002) {
+        currentSnowIntensity += snowDiff * 0.035;
+      } else {
+        currentSnowIntensity = targetSnow;
+      }
+
+      if (currentSnowIntensity > 0.005) {
+        for (const flake of flakes) {
+          const range = 0.25;
+          const delta = currentSnowIntensity - flake.threshold;
+          const flakeFade = Math.max(0, Math.min(1, delta / range));
+
+          if (flakeFade > 0) {
+            const finalAlpha = flake.opacity * flakeFade;
+            // ADD: 左右にふわりと揺れる自然な落下スウェイ
+            const sway = Math.sin(time * flake.swaySpeed + flake.swayPhase) * flake.swayAmp;
+            const fx = flake.x + sway;
+            const fy = flake.y;
+
+            ctx.save();
+            ctx.fillStyle = `rgba(240, 248, 255, ${finalAlpha})`;
+            ctx.beginPath();
+            ctx.arc(fx, fy, flake.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // ADD: 大きめの雪片には柔らかい光彩ハロー
+            if (flake.r > 2.2) {
+              const halo = ctx.createRadialGradient(fx, fy, 0, fx, fy, flake.r * 2);
+              halo.addColorStop(0, `rgba(255, 255, 255, ${finalAlpha * 0.35})`);
+              halo.addColorStop(1, 'rgba(255, 255, 255, 0)');
+              ctx.fillStyle = halo;
+              ctx.beginPath();
+              ctx.arc(fx, fy, flake.r * 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+
+          flake.y += flake.speed;
+          if (flake.y > height + 10) {
+            flake.y = -10;
+            flake.x = Math.random() * (width + 80) - 40;
+          }
+        }
+      }
+
+      // ADD: ---- 5. 雷(稲妻ライン)の描画 (大迫力ライン、点滅なし) ----
       if (isThunderRef.current) {
         const now = Date.now();
         if (!currentBolt && now >= nextLightningTime) {

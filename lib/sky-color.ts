@@ -363,6 +363,15 @@ export function isRainyWeather(code: number | null): boolean {
 }
 
 /**
+ * ADD: 雪が降る天気かどうかを判定する。
+ * 弱い雪(71), 雪(73), 強い雪(75), 雪あられ(77), にわか雪(85), 強いにわか雪(86)
+ */
+export function isSnowyWeather(code: number | null): boolean {
+  if (code === null) return false;
+  return code >= 71 && code <= 86;
+}
+
+/**
  * ADD: 雷が発生する天気かどうかを判定する。
  * 雷雨(95-99)
  */
