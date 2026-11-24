@@ -25,9 +25,11 @@ const WEATHER_CODE_TTL_MS = 30 * 60 * 1000;
 export async function getCurrentSkyGradient(sky: SkyConfig): Promise<SkyGradient> {
   // ADD: デバッグオーバーライドが有効な場合は指定値で即座に計算
   if (sky.debug?.enabled) {
+    const isDawn = sky.debug.isDawn ?? (sky.debug.timeOfDay !== undefined ? sky.debug.timeOfDay < 12 : false);
     return computeSkyGradientFromElevation(
       sky.debug.elevation,
       sky.useWeather ? sky.debug.weatherCode : null,
+      isDawn,
     );
   }
 

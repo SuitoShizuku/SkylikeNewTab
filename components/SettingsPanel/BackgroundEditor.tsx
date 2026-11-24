@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useMemo } from 'react'; // EDIT: useMemoを追加
-import { ArrowRight, Upload, MapPin, Loader2, Check, Bug, Sun, CloudRain, Moon, Sparkles } from 'lucide-react'; // EDIT: Moon, Sparkles追加
+import { ArrowRight, Upload, MapPin, Loader2, Check, Bug, Sun, CloudRain, Moon, Sparkles, Clock, Sunrise, Sunset } from 'lucide-react'; // EDIT: Clock, Sunrise, Sunset追加
 
 import { ColorPicker } from '@/components/ColorPicker/ColorPicker';
 import { NumberStepper } from '@/components/NumberStepper/NumberStepper';
@@ -8,12 +8,13 @@ import type { BackgroundConfig, SkyConfig, SkyDebugConfig } from '@/lib/types';
 import { geocodeCity } from '@/widgets/weather/open-meteo';
 import {
   computeSkyGradientFromElevation,
+  timeToSolarPosition, // ADD: timeToSolarPosition
   isRainyWeather,
   isThunderWeather,
   isSnowyWeather, // ADD: isSnowyWeather
   getMoonPhase,
   getStarVisibility,
-} from '@/lib/sky-color'; // EDIT: 月相と星空の関数を追加
+} from '@/lib/sky-color'; // EDIT: 朝焼け・夕焼け・時刻対応の関数を追加
 
 import styles from './background-editor.module.css';
 import fieldStyles from '../Field/field.module.css';
@@ -37,7 +38,7 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
 
   // ADD: デバッグ設定の取得と更新ヘルパー
   const debugConfig: SkyDebugConfig = useMemo(
-    () => value.sky.debug ?? { enabled: false, elevation: 45, weatherCode: 0 },
+    () => value.sky.debug ?? { enabled: false, elevation: 45, weatherCode: 0, timeOfDay: 12.0, isDawn: false },
     [value.sky.debug],
   );
 
@@ -55,13 +56,61 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
     [debugConfig, onChange, value],
   );
 
+  // ADD: 現在の朝焼け・夕焼け状態
+  const isDawnState = debugConfig.isDawn ?? (debugConfig.timeOfDay !== undefined ? debugConfig.timeOfDay < 12 : false);
+
   // ADD: デバッグプレビュー用のグラデーションCSS
   const debugGradient = useMemo(() => {
     return computeSkyGradientFromElevation(
       debugConfig.elevation,
       value.sky.useWeather ? debugConfig.weatherCode : null,
+      isDawnState,
     );
-  }, [debugConfig.elevation, debugConfig.weatherCode, value.sky.useWeather]);
+  }, [debugConfig.elevation, debugConfig.weatherCode, isDawnState, value.sky.useWeather]);
+
+  // ADD: 24時間時刻の表示フォーマッター
+  const formatTimeLabel = useCallback((t: number): string => {
+    const hours = Math.floor(t);
+    const minutes = Math.round((t - hours) * 60);
+    const mStr = minutes.toString().padStart(2, '0');
+    if (t >= 24) return '24:00 (深夜)';
+    if (t === 0) return '0:00 (深夜)';
+    if (t < 5) return `${hours}:${mStr} (未明)`;
+    if (t < 7) return `${hours}:${mStr} (日の出・朝焼け)`;
+    if (t < 11) return `${hours}:${mStr} (午前)`;
+    if (t < 14) return `${hours}:${mStr} (正午・真昼)`;
+    if (t < 17) return `${hours}:${mStr} (午後)`;
+    if (t < 19) return `${hours}:${mStr} (日没・夕焼け)`;
+    if (t < 21) return `${hours}:${mStr} (薄暮・黄昏)`;
+    return `${hours}:${mStr} (夜)`;
+  }, []);
+
+  // ADD: 時刻変更ハンドラー (太陽仰角と朝/夕フェーズを自動連動)
+  const handleTimeChange = useCallback(
+    (time: number) => {
+      const { elevation, isDawn } = timeToSolarPosition(time);
+      updateDebug({
+        timeOfDay: time,
+        elevation: Math.round(elevation),
+        isDawn,
+      });
+    },
+    [updateDebug],
+  );
+
+  // ADD: 代表的な24時間ループ時刻プリセット (端0:00と端24:00で深夜として繋がる)
+  const TIME_PRESETS = [
+    { label: '深夜 (0:00)', time: 0 },
+    { label: '未明 (4:30)', time: 4.5 },
+    { label: '朝焼け (6:00)', time: 6.0 },
+    { label: '午前 (9:00)', time: 9.0 },
+    { label: '真昼 (12:00)', time: 12.0 },
+    { label: '午後 (15:00)', time: 15.0 },
+    { label: '夕焼け (18:00)', time: 18.0 },
+    { label: '薄暮 (19:30)', time: 19.5 },
+    { label: '夜 (22:00)', time: 22.0 },
+    { label: '深夜 (24:00)', time: 24.0 },
+  ];
 
   // ADD: 代表的な時間帯プリセット
   const ELEVATION_PRESETS = [
@@ -437,6 +486,10 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
               style={{ background: debugGradient.css }}
             >
               <div className={styles.debugBadge}>
+                <span>時刻: {formatTimeLabel(debugConfig.timeOfDay ?? 12)}</span>
+                <span style={{ color: isDawnState ? '#fde047' : '#fb923c' }}>
+                  {isDawnState ? '🌅 朝焼け (昇り)' : '🌇 夕焼け (沈み)'}
+                </span>
                 <span>仰角: {debugConfig.elevation}°</span>
                 <span>天頂: {debugGradient.zenith}</span>
                 <span>地平線: {debugGradient.horizon}</span>
@@ -468,13 +521,76 @@ export function BackgroundEditor({ value, onChange }: BackgroundEditorProps) {
               </div>
             </div>
 
-            {/* ADD: 太陽仰角の調整 */}
+            {/* ADD: 24時間時刻シミュレーション (端と端が深夜で繋がるループスライダー) */}
+            <div className={fieldStyles.field}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className={fieldStyles.label}>
+                  <Clock size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
+                  24時間ループ時刻 ({formatTimeLabel(debugConfig.timeOfDay ?? 12)})
+                </label>
+              </div>
+              <input
+                type="range"
+                className={styles.slider}
+                min={0}
+                max={24}
+                step={0.25}
+                value={debugConfig.timeOfDay ?? 12}
+                onChange={(e) => handleTimeChange(Number(e.target.value))}
+              />
+              <span className={fieldStyles.help}>
+                左端 (0:00) と右端 (24:00) が同じ深夜として綺麗に繋がります。朝焼けと夕焼けの色の違いも自然に再現されます。
+              </span>
+              <div className={styles.presetGrid}>
+                {TIME_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    className={cx(
+                      styles.presetButton,
+                      Math.abs((debugConfig.timeOfDay ?? 12) - preset.time) < 0.2 && styles.presetButtonActive,
+                    )}
+                    onClick={() => handleTimeChange(preset.time)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ADD: 朝焼け・夕焼けフェーズの切り替え & 太陽仰角の微調整 */}
             <div className={fieldStyles.field}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label className={fieldStyles.label}>
                   <Sun size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
-                  太陽の仰角 ({debugConfig.elevation}°)
+                  太陽の仰角 ({debugConfig.elevation}°) & 朝・夕フェーズ
                 </label>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    type="button"
+                    className={cx(
+                      styles.tab,
+                      isDawnState && styles.tabActive,
+                    )}
+                    style={{ flex: '0 0 auto', padding: '3px 8px', fontSize: 11 }}
+                    onClick={() => updateDebug({ isDawn: true })}
+                  >
+                    <Sunrise size={11} style={{ marginRight: 3, verticalAlign: -1 }} />
+                    朝焼け (昇り)
+                  </button>
+                  <button
+                    type="button"
+                    className={cx(
+                      styles.tab,
+                      !isDawnState && styles.tabActive,
+                    )}
+                    style={{ flex: '0 0 auto', padding: '3px 8px', fontSize: 11 }}
+                    onClick={() => updateDebug({ isDawn: false })}
+                  >
+                    <Sunset size={11} style={{ marginRight: 3, verticalAlign: -1 }} />
+                    夕焼け (沈み)
+                  </button>
+                </div>
               </div>
               <input
                 type="range"
