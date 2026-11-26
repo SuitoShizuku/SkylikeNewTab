@@ -1,0 +1,202 @@
+/* ADD: 翻訳ウィジェットのスタイル定義 */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px;
+  font-family: var(--ant-canvas-font);
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.langGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.select {
+  appearance: none;
+  background: rgba(var(--ant-card-base), 0.12);
+  color: var(--ant-text);
+  border: 1px solid var(--ant-card-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  max-width: 120px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: border-color 140ms var(--ant-ease), background-color 140ms var(--ant-ease);
+}
+
+.select:focus {
+  border-color: var(--ant-accent);
+}
+
+.select option {
+  background: var(--ant-menu-bg, #181513);
+  color: #f1ecec;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--ant-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 140ms var(--ant-ease), background-color 140ms var(--ant-ease);
+}
+
+.iconBtn:hover:not(:disabled) {
+  color: var(--ant-text);
+  background: rgba(var(--ant-card-base), 0.1);
+}
+
+.iconBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.externalGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.externalLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--ant-muted);
+  text-decoration: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(var(--ant-card-base), 0.08);
+  border: 1px solid var(--ant-card-border);
+  transition: color 140ms var(--ant-ease), border-color 140ms var(--ant-ease);
+}
+
+.externalLink:hover {
+  color: var(--ant-text);
+  border-color: var(--ant-accent);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.box {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  background: rgba(var(--ant-card-base), 0.08);
+  border: 1px solid var(--ant-card-border);
+  border-radius: var(--ant-field-radius);
+  padding: 8px 10px;
+  position: relative;
+  transition: border-color 140ms var(--ant-ease);
+}
+
+.box:focus-within {
+  border-color: var(--ant-accent);
+}
+
+.textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  line-height: 1.5;
+  font-size: 13px;
+  color: var(--ant-text);
+  font-family: var(--ant-canvas-font);
+}
+
+.textarea::placeholder {
+  color: var(--ant-muted);
+}
+
+.resultArea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ant-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.placeholder {
+  color: var(--ant-muted);
+}
+
+.boxFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ant-muted);
+  flex-shrink: 0;
+}
+
+.boxActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.detectedBadge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(var(--ant-card-base), 0.12);
+  color: var(--ant-muted);
+}
+
+.errorText {
+  color: #f87171;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

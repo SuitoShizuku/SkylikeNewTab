@@ -20,6 +20,7 @@ import { pomodoroWidget } from '@/widgets/pomodoro';
 import { rssWidget } from '@/widgets/rss';
 import { searchWidget } from '@/widgets/search';
 import { topSitesWidget } from '@/widgets/topsites';
+import { translateWidget } from '@/widgets/translate'; // EDIT: 翻訳ウィジェットのインポート
 import { weatherWidget } from '@/widgets/weather';
 import { worldClockWidget } from '@/widgets/worldclock';
 import { youtubeMediaWidget } from '@/widgets/youtube-media';
@@ -77,6 +78,7 @@ register(calculatorWidget);
 register(imageWidget);
 register(worldClockWidget);
 register(weatherWidget);
+register(translateWidget); // EDIT: 翻訳ウィジェットの登録
 
 /**
  * ブラウザ拡張機能APIに依存し、静的サイト版（entrypoints/webapp、`npm run build:web`）では
